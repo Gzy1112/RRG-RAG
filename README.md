@@ -199,11 +199,11 @@ python scripts/merge_eval_shards.py outputs/eval/SlideVQA/slidevqa_rrg_full_hybr
 
 | Benchmark | Configuration | Score (1-5) | Accuracy (%) |
 |---|---|---|---|
-| SlideVQA test (2,215) | Role-Specialized Sequential Optimization only | 3.986 | 70.1 |
+| SlideVQA test | Role-Specialized Sequential Optimization only | 3.986 | 70.1 |
 | | full RRG-RAG (`full`) | **4.084** | **72.8** |
-| ViDoSeek (1,142) | Role-Specialized Sequential Optimization only | 4.099 | 73.1 |
+| ViDoSeek | Role-Specialized Sequential Optimization only | 4.099 | 73.1 |
 | | full RRG-RAG (`full`) | **4.178** | **75.5** |
-| MMLongBench-Doc (1,082) | Role-Specialized Sequential Optimization only (`tfr`) | 2.375 | 26.9 |
+| MMLongBench-Doc | Role-Specialized Sequential Optimization only (`tfr`) | 2.375 | 26.9 |
 | | full RRG-RAG (`full`) | **2.421** | **28.0** |
 
 Accuracy is the share of questions with judge score ≥ 4 (`passing` in `*_eval.json`). LLM-judge scores can shift slightly across judge API versions. See the paper for the full tables and ablations.
