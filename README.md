@@ -7,22 +7,32 @@ RRG-RAG answers questions over large collections of visually rich document pages
 | Agent | Input | Output |
 |---|---|---|
 | **Seeker** | question + the ColQwen2.5 candidate pages (GMM triage, 5-10 pages) | indices of the evidence pages `E0` |
-| **Inspector** | question + `E0` + retrieval-confidence features | `STOP` (keep `E0`) or `DECK` (look for more evidence in the same document) |
+| **Inspector** | question + `E0` + retrieval-confidence features | `STOP` (keep `E0`) or `RETRIEVE-MORE` (look for more evidence in the same document) |
 | **Synthesizer** | question + final evidence pages | short answer |
 
 The repository covers the full pipeline:
 
 1. **Supervised initialization** of the Seeker and the Synthesizer (LLaMA-Factory SFT).
-2. **Role-specialized sequential RL** (`TFR` in the code). For 2 cycles, the Synthesizer is optimized with PPO first, then the Seeker is optimized with PPO. The Seeker reward is end-to-end: `0.4 * evidence + 0.6 * answer F1`, where the answer comes from the Synthesizer of the previous round, kept frozen.
-3. **Evidence recovery at inference**:
+2. **Role-Specialized Sequential Optimization**: sequential PPO of the Synthesizer and the Seeker. For 2 cycles, the Synthesizer is optimized with PPO first, then the Seeker is optimized with PPO. The Seeker reward is end-to-end: `0.4 * evidence + 0.6 * answer F1`, where the answer comes from the Synthesizer of the previous round, kept frozen.
+3. **Selective Visual Evidence Recovery** at inference:
    - **Rank-1 rescue**: the top-ranked retrieved page is appended to the selected evidence.
-   - **Inspector-gated same-deck second hop (`DECK`)**: the Seeker re-selects from `E0` plus the best-ranked pages of the same deck(s), and the result is unioned with `E0`.
-4. **Inspector GRPO**:
+   - **Inspector-gated `RETRIEVE-MORE` (same-deck second hop)**: the Seeker re-selects from `E0` plus the best-ranked pages of the same deck(s), and the result is unioned with `E0`.
+4. **GRPO-Based Inspector Controller Optimization**:
    - The Inspector is a fresh LoRA trained with GRPO.
-   - Its rewards are counterfactual branch outcomes (the judge score of `STOP` vs `DECK`), cached on the SlideVQA val split.
+   - Its rewards are counterfactual branch outcomes (the judge score of `STOP` vs `RETRIEVE-MORE`), cached on the SlideVQA val split.
    - The checkpoint and the action bias are selected on held-out val decks only.
 
 Evaluation covers **SlideVQA** (test, 2,215 questions), **ViDoSeek** (1,142) and **MMLongBench-Doc** (1,082). Retrieval always runs over the whole page collection of each benchmark, never within the gold document.
+
+**Paper terms and code identifiers.** Some identifiers in the code predate the paper's terminology:
+
+| Paper | Code |
+|---|---|
+| Role-Specialized Sequential Optimization | `TFR` (`scripts/train_tfr.sh`, `outputs/TFR_7B/`, `LLaMA-Factory/src/train_restore.py` / `train_restore_7b.py`, eval variants `tfr` / `tfr_r1`) |
+| Selective Visual Evidence Recovery | `run_closedloop_eval.py` (`CONTROLLER_MODE=inspector_v2`, `HOP2_MODE=deck`, `RANK1_RESCUE=append`) |
+| GRPO-Based Inspector Controller Optimization | `inspector_grpo_v2` (`scripts/train_inspector_grpo.sh`, `LLaMA-Factory/src/train_restore_grpo.py`, `outputs/INSPECTOR_GRPO/`) |
+| `RETRIEVE-MORE` action | `DECK` |
+| Accuracy | `passing` (share of questions with judge score ≥ 4) |
 
 ---
 
@@ -37,17 +47,17 @@ Evaluation covers **SlideVQA** (test, 2,215 questions), **ViDoSeek** (1,142) and
 ├── rebuild_rank_cache_colqwen25.py   # per-question top-100 ranking cache
 ├── inspector_v2_prompt.py            # Inspector prompt / action scoring
 ├── build_controller_sft_data*.py     # prompt template + confidence features (shared by Inspector code)
-├── build_inspector_branch_cache.py   # counterfactual STOP / DECK branch outcomes (val split)
+├── build_inspector_branch_cache.py   # counterfactual STOP / RETRIEVE-MORE branch outcomes (val split)
 ├── eval_inspector_v2_offline.py      # offline scoring of Inspector checkpoints on val holdout
 ├── select_inspector_v2_policy.py     # checkpoint + action-bias selection
 ├── llms/  agent/  utils/             # model wrappers, prompts, judge, metrics
 ├── data_prep/                        # dataset conversion, page indexing, SFT data construction
 ├── scripts/                          # end-to-end launchers (see below)
-└── LLaMA-Factory/                    # modified LLaMA-Factory (SFT, per-agent PPO, Inspector GRPO)
+└── LLaMA-Factory/                    # modified LLaMA-Factory (SFT, sequential PPO, Inspector controller GRPO)
     ├── src/train.py                  # SFT entry
-    ├── src/train_restore.py          # sequential RL, Synthesizer round
-    ├── src/train_restore_7b.py       # sequential RL, Seeker round (frozen Synthesizer on a 2nd GPU)
-    ├── src/train_restore_grpo.py     # Inspector GRPO
+    ├── src/train_restore.py          # Role-Specialized Sequential Optimization, Synthesizer round
+    ├── src/train_restore_7b.py       # Role-Specialized Sequential Optimization, Seeker round (frozen Synthesizer on a 2nd GPU)
+    ├── src/train_restore_grpo.py     # GRPO-Based Inspector Controller Optimization
     ├── src/llamafactory/train/ppo/   # trainers, rewards, workflows
     ├── examples/train_lora/*.yaml    # training configs
     └── data/dataset_info.json
@@ -145,7 +155,7 @@ scripts/start_retrieval_server.sh MMLongBench 8002 0 &
 
 The server serves the ColQwen2.5 MaxSim ranking with the GMM candidate triage (top-20 → 5-10 pages).
 
-The closed loop also needs a per-question top-100 **rank cache**, which is used by rank-1 rescue, the same-deck hop and the Inspector features:
+The closed loop also needs a per-question top-100 **rank cache**, which is used by rank-1 rescue, the `RETRIEVE-MORE` candidate expansion and the Inspector features:
 
 ```bash
 scripts/build_rank_cache.sh SlideVQA    rag_dataset_val.json  outputs/rank_cache/SlideVQA_val.jsonl
@@ -182,26 +192,32 @@ python data_prep/build_gold_answers.py                            # data/SlideVQ
 
 All outputs go to `outputs/`. The GPU ids below are examples.
 
+### 3.1 Supervised initialization
+
+One GPU per role; LoRA r32/α64 on all LM linear layers, vision tower frozen.
+
 ```bash
-# 3.1 SFT warm start (single GPU each; LoRA r32/α64 on all LM linear layers, vision tower frozen)
 scripts/train_sft.sh seeker      0
 scripts/train_sft.sh synthesizer 0
 ```
 
+### 3.2 Role-Specialized Sequential Optimization
+
+Sequential PPO: 2 cycles × (Synthesizer PPO → Seeker PPO), 30 steps per round. Round A (Synthesizer) runs on GPU 0. Round B (Seeker) runs on GPUs 0,1: the policy on the first, the frozen Synthesizer on the second.
+
 ```bash
-# 3.2 Role-specialized sequential RL: 2 cycles x (Synthesizer PPO -> Seeker PPO), 30 steps per round
-# round A on GPU 0; round B on GPUs 0,1 (policy on the first, frozen Synthesizer on the second)
 scripts/train_tfr.sh 0 0,1
 # -> outputs/TFR_7B/cycle2/round_b_seeker, outputs/TFR_7B/cycle2/round_a_synth
 ```
 
+### 3.3 GRPO-Based Inspector Controller Optimization
+
 ```bash
-# 3.3 Inspector GRPO
 # (a) counterfactual branch outcomes on the SlideVQA val split (needs the SlideVQA server + judge)
 scripts/build_inspector_branch_cache.sh 0 0 2 &
 scripts/build_inspector_branch_cache.sh 1 1 2 &
 wait
-# (b) GRPO: actions {STOP, DECK}, G=8, 8 questions/step, KL β=0.05, 120 steps, fresh LoRA r16/α32
+# (b) GRPO: actions {STOP, RETRIEVE-MORE} (STOP,DECK in the code), G=8, 8 questions/step, KL β=0.05, 120 steps, fresh LoRA r16/α32
 scripts/train_inspector_grpo.sh 0 run1
 # (c) checkpoint + bias selection on held-out val decks -> outputs/INSPECTOR_GRPO/selected_policy.json
 scripts/select_inspector_policy.sh 0 run1
@@ -222,14 +238,16 @@ scripts/eval_closedloop.sh 0 MMLongBench full   8002
 
 | variant | configuration |
 |---|---|
-| `full` | sequential-RL agents + rank-1 rescue + Inspector GRPO (`STOP`/`DECK`, selected checkpoint and bias) |
-| `rule` | sequential-RL agents + rank-1 rescue + fixed rule (`DECK` iff the Seeker kept ≥ 2 pages) |
-| `tfr_r1` | sequential-RL agents + rank-1 rescue |
-| `tfr` | sequential-RL agents, no evidence recovery |
+| `full` | full RRG-RAG: sequentially optimized agents + Selective Visual Evidence Recovery (rank-1 rescue + GRPO-trained Inspector choosing `STOP` / `RETRIEVE-MORE`, selected checkpoint and bias) |
+| `rule` | sequentially optimized agents + rank-1 rescue + fixed rule (`RETRIEVE-MORE` iff the Seeker kept ≥ 2 pages) |
+| `tfr_r1` | sequentially optimized agents + rank-1 rescue |
+| `tfr` | sequentially optimized agents only, no evidence recovery |
+
+*Sequentially optimized agents* are the Seeker and the Synthesizer after Role-Specialized Sequential Optimization.
 
 **Output.** Results are written to `outputs/eval/<dataset>/<ds>_rrg_<variant>_hybrid_<ds>.jsonl`, one row per question with the full agent trace. Metrics are in `*_eval.json`:
 - `score`: mean judge score on a 1-5 scale;
-- `passing`: share of questions with score ≥ 4.
+- `passing`: **Accuracy**, the share of questions with score ≥ 4.
 
 **Resuming.** Runs resume automatically (`EVAL_NO_CLEAN=1`).
 
@@ -244,17 +262,17 @@ python scripts/merge_eval_shards.py outputs/eval/SlideVQA/slidevqa_rrg_full_hybr
 
 ### Reference results (judge: qwen3-vl-plus)
 
-| Benchmark | Configuration | Score (1-5) | Pass (≥4) |
+| Benchmark | Configuration | Score (1-5) | Accuracy (%) |
 |---|---|---|---|
-| SlideVQA test (2,215) | `tfr` | 3.986 | 70.1% |
-| | `tfr_r1` | 4.034 | 71.5% |
-| | `full` | **4.084** | **72.8%** |
-| ViDoSeek (1,142) | `tfr` | 4.099 | 73.1% |
-| | `full` | **4.178** | **75.5%** |
-| MMLongBench-Doc (1,082) | `tfr` | 2.375 | 26.9% |
-| | `full` | **2.421** | **28.0%** |
+| SlideVQA test (2,215) | Role-Specialized Sequential Optimization only (`tfr`) | 3.986 | 70.1 |
+| | + rank-1 rescue (`tfr_r1`) | 4.034 | 71.5 |
+| | full RRG-RAG (`full`) | **4.084** | **72.8** |
+| ViDoSeek (1,142) | Role-Specialized Sequential Optimization only (`tfr`) | 4.099 | 73.1 |
+| | full RRG-RAG (`full`) | **4.178** | **75.5** |
+| MMLongBench-Doc (1,082) | Role-Specialized Sequential Optimization only (`tfr`) | 2.375 | 26.9 |
+| | full RRG-RAG (`full`) | **2.421** | **28.0** |
 
-LLM-judge scores can shift slightly across judge API versions. See the paper for the full tables and ablations.
+Accuracy is the share of questions with judge score ≥ 4 (`passing` in `*_eval.json`). LLM-judge scores can shift slightly across judge API versions. See the paper for the full tables and ablations.
 
 ---
 
