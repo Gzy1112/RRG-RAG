@@ -52,7 +52,6 @@ WELCOME = (
     + "|\n|"
     + " " * 56
     + "|\n"
-    + "| Project page: https://github.com/hiyouga/LLaMA-Factory |\n"
     + "-" * 58
 )
 

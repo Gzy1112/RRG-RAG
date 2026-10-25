@@ -727,7 +727,7 @@ class CustomPPOTrainer_QSG(PPOTrainer, Trainer):
         reward_meter = AverageMeter()
         self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
-        answers_path = '/root/paddlejob/workspace/env_run/rag/data/ambigqa/train_top_k_docs.jsonl'
+        answers_path = os.environ.get('QSG_ANSWERS_PATH', 'data/ambigqa/train_top_k_docs.jsonl')
         questions_golden_answers_dict = self.get_answer_dict(answers_path)
 
         # selector: allowed_tokens

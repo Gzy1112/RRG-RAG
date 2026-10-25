@@ -33,7 +33,7 @@ from typing import Dict, List, Optional
 
 
 # =============================================================================
-# Reward Method Switch (original ViDoRAG vs V-MMOA paper)
+# Reward Method Switch (original ViDoRAG vs HRD reward)
 # =============================================================================
 # Controls which reward formulation is used for PPO / MAPPO training.
 #
@@ -41,7 +41,7 @@ from typing import Dict, List, Optional
 #                Each agent receives  (1 - w) * individual + w * shared_answer_F1
 #                with different individual signals per agent (see compute_batch_rewards).
 #
-#   "vmmoa"    : V-MMOA paper (Anonymous EMNLP Submission, Sec. 4.2, Eq. 1)
+#   "hrd"      : HRD (paper Sec. 4.2, Eq. 1)
 #                hierarchical reward decomposition:
 #
 #                    R(τ) = R_ans  + α·R_ret  + β·R_ins  - λ·C(τ)
@@ -56,13 +56,13 @@ from typing import Dict, List, Optional
 #                centralised critic provides the baseline (shared advantage, paper Sec. 4.3).
 #
 # Toggle at runtime without code changes via the environment variable:
-#     export VIDORAG_REWARD_METHOD=vmmoa   # or "original" (default)
+#     export VIDORAG_REWARD_METHOD=hrd   # or "original" (default)
 REWARD_METHOD = os.environ.get("VIDORAG_REWARD_METHOD", "original").lower()
 
-# V-MMOA reward coefficients (paper Sec. 4.4 / Appendix B).
-VMMOA_ALPHA = float(os.environ.get("VMMOA_ALPHA", "0.5"))    # Seeker recall weight (α)
-VMMOA_BETA = float(os.environ.get("VMMOA_BETA", "0.3"))     # Inspector precision weight (β)
-VMMOA_LAMBDA = float(os.environ.get("VMMOA_LAMBDA", "0.05"))  # iteration-cost penalty (λ)
+# HRD reward coefficients (paper Sec. 4.4 / Appendix B).
+HRD_ALPHA = float(os.environ.get("HRD_ALPHA", "0.5"))    # Seeker recall weight (α)
+HRD_BETA = float(os.environ.get("HRD_BETA", "0.3"))     # Inspector precision weight (β)
+HRD_LAMBDA = float(os.environ.get("HRD_LAMBDA", "0.05"))  # iteration-cost penalty (λ)
 
 
 # =============================================================================
@@ -530,9 +530,9 @@ def compute_shared_reward(final_answer: str, gold_answer: str) -> float:
 
 
 # =============================================================================
-# V-MMOA Paper Reward Components (hierarchical decomposition, Eq. 1)
+# HRD Reward Components (hierarchical decomposition, Eq. 1)
 # =============================================================================
-# These implement the three terms of the V-MMOA return
+# These implement the three terms of the HRD return
 #     R(τ) = R_ans + α·R_ret + β·R_ins − λ·C(τ)
 # R_ans is the global terminal answer-F1, R_ret / R_ins are dense agent-local
 # shaping signals (recall@k for the Seeker, precision for the Inspector), and
@@ -540,7 +540,7 @@ def compute_shared_reward(final_answer: str, gold_answer: str) -> float:
 # =============================================================================
 
 
-def compute_vmmoa_seeker_reward(
+def compute_hrd_seeker_reward(
     prediction: str,
     gold_pages: List[int],
     total_pages: int,
@@ -549,7 +549,7 @@ def compute_vmmoa_seeker_reward(
     """R_ret: recall@k of the Seeker's retrieved pages against gold evidence.
 
     Paper Sec. 4.2: "R_ret is the recall@k of R_t against gold evidence pages".
-    Pure recall (no precision bonus, no format penalty) — the V-MMOA shaping
+    Pure recall (no precision bonus, no format penalty) — the HRD shaping
     signal is intentionally a single, low-variance term.
 
     Args:
@@ -584,7 +584,7 @@ def compute_vmmoa_seeker_reward(
     return len(predicted_set & gold_set) / len(gold_set)
 
 
-def compute_vmmoa_inspector_reward(
+def compute_hrd_inspector_reward(
     prediction: str,
     gold_pages: List[int],
     gold_answer: str,
@@ -643,7 +643,7 @@ def compute_vmmoa_inspector_reward(
     return 0.0
 
 
-def compute_vmmoa_answer_reward(prediction: str, gold_answer: str) -> float:
+def compute_hrd_answer_reward(prediction: str, gold_answer: str) -> float:
     """R_ans: answer-level F1 of the final answer (global terminal reward).
 
     Paper Sec. 4.2: "R_ans is the answer-level F1 of ŷ against the reference".
@@ -666,7 +666,7 @@ def compute_vmmoa_answer_reward(prediction: str, gold_answer: str) -> float:
     return compute_f1(model_answer, gold_answer)
 
 
-def compute_vmmoa_iteration_cost(inspector_output: str) -> float:
+def compute_hrd_iteration_cost(inspector_output: str) -> float:
     """C(τ) contribution for a single trajectory: 1[a_insp ≠ stop].
 
     Paper Sec. 4.2: "C(τ) = Σ_t 1[a_insp_t ≠ stop] counts non-terminal iterations".
@@ -719,7 +719,7 @@ def compute_batch_rewards(
         all agents to cooperate for a good final answer.  Each agent receives a
         DIFFERENT reward (its own individual signal blended with the shared term).
 
-      * ``"vmmoa"`` — V-MMOA paper hierarchical decomposition (Eq. 1)::
+      * ``"hrd"`` — HRD hierarchical decomposition (Eq. 1)::
 
             R(τ) = R_ans + α·R_ret + β·R_ins − λ·C(τ)
 
@@ -738,7 +738,7 @@ def compute_batch_rewards(
         total_pages: List of total candidate pages per sample.
         has_sufficient_evidence: List of booleans per sample (original mode only).
         shared_reward_weight: Weight for shared reward (original mode, default 0.3).
-        reward_method: ``"original"`` / ``"vmmoa"`` / ``None`` (use global switch).
+        reward_method: ``"original"`` / ``"hrd"`` / ``None`` (use global switch).
 
     Returns:
         Dictionary with keys 'seeker_rewards', 'inspector_rewards',
@@ -747,8 +747,8 @@ def compute_batch_rewards(
     if reward_method is None:
         reward_method = REWARD_METHOD
 
-    if reward_method == "vmmoa":
-        return _compute_batch_rewards_vmmoa(
+    if reward_method == "hrd":
+        return _compute_batch_rewards_hrd(
             seeker_outputs=seeker_outputs,
             inspector_outputs=inspector_outputs,
             synthesizer_outputs=synthesizer_outputs,
@@ -819,7 +819,7 @@ def compute_batch_rewards(
     }
 
 
-def _compute_batch_rewards_vmmoa(
+def _compute_batch_rewards_hrd(
     seeker_outputs: List[str],
     inspector_outputs: List[str],
     synthesizer_outputs: List[str],
@@ -827,7 +827,7 @@ def _compute_batch_rewards_vmmoa(
     gold_pages: List[List[int]],
     total_pages: List[int],
 ) -> Dict[str, List[float]]:
-    """V-MMOA hierarchical reward decomposition (paper Eq. 1).
+    """HRD hierarchical reward decomposition (paper Eq. 1).
 
         R(τ) = R_ans + α·R_ret + β·R_ins − λ·C(τ)
 
@@ -837,7 +837,7 @@ def _compute_batch_rewards_vmmoa(
     the Seeker, Inspector and Synthesizer rollouts.
 
     Coefficients (α, β, λ) = (0.5, 0.3, 0.05) follow paper Sec. 4.4 and can be
-    overridden via the ``VMMOA_ALPHA`` / ``VMMOA_BETA`` / ``VMMOA_LAMBDA``
+    overridden via the ``HRD_ALPHA`` / ``HRD_BETA`` / ``HRD_LAMBDA``
     environment variables.
     """
     batch_size = len(seeker_outputs)
@@ -859,9 +859,9 @@ def _compute_batch_rewards_vmmoa(
 
     for i in range(batch_size):
         # Global terminal answer reward (R_ans).
-        r_ans = compute_vmmoa_answer_reward(synthesizer_outputs[i], gold_answers[i])
+        r_ans = compute_hrd_answer_reward(synthesizer_outputs[i], gold_answers[i])
         # Dense Seeker-local shaping (R_ret = recall@k).
-        r_ret = compute_vmmoa_seeker_reward(
+        r_ret = compute_hrd_seeker_reward(
             seeker_outputs[i], gold_pages[i], total_pages[i]
         )
 
@@ -912,15 +912,15 @@ def _compute_batch_rewards_vmmoa(
                     #   r_ins stays 0.0 (no reward for incorrect rejection).
         else:
             # JSON inspector output (per-agent or future iterative MAPPO).
-            r_ins = compute_vmmoa_inspector_reward(
+            r_ins = compute_hrd_inspector_reward(
                 inspector_outputs[i], gold_pages[i], gold_answers[i]
             )
-            c_tau = compute_vmmoa_iteration_cost(inspector_outputs[i])
+            c_tau = compute_hrd_iteration_cost(inspector_outputs[i])
 
         # Aggregate the shaped return (paper Eq. 1).
-        r_total = r_ans + VMMOA_ALPHA * r_ret + VMMOA_BETA * r_ins - VMMOA_LAMBDA * c_tau
+        r_total = r_ans + HRD_ALPHA * r_ret + HRD_BETA * r_ins - HRD_LAMBDA * c_tau
 
-        # Clamp for PPO stability. The V-MMOA return naturally lives in roughly
+        # Clamp for PPO stability. The HRD return naturally lives in roughly
         # [-λ, 1 + α + β] = [-0.05, 1.8]; we clamp to [-1, 2] to guard outliers
         # without crushing the shaped signal (unlike the original [-1, 1] clamp).
         r_total = max(-1.0, min(2.0, r_total))
@@ -935,7 +935,7 @@ def _compute_batch_rewards_vmmoa(
         _log_r_ins.append(r_ins)
         _log_c_tau.append(c_tau)
 
-    # Log V-MMOA reward components for monitoring
+    # Log HRD reward components for monitoring
     _n = max(batch_size, 1)
     _avg_r_ans = sum(_log_r_ans) / _n
     _avg_r_ret = sum(_log_r_ret) / _n
@@ -943,7 +943,7 @@ def _compute_batch_rewards_vmmoa(
     _avg_c_tau = sum(_log_c_tau) / _n
     _avg_total = sum(seeker_rewards) / _n
     print(
-        f"[V-MMOA] R_ans={_avg_r_ans:.4f}  R_ret={_avg_r_ret:.4f}  "
+        f"[HRD] R_ans={_avg_r_ans:.4f}  R_ret={_avg_r_ret:.4f}  "
         f"R_ins={_avg_r_ins:.4f}  C(tau)={_avg_c_tau:.4f}  "
         f"R_total={_avg_total:.4f}  "
         f"gold_pages_nonempty={sum(1 for gp in gold_pages if len(gp) > 0)}/{_n}",

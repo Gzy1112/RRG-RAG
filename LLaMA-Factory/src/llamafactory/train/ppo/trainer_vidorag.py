@@ -103,9 +103,9 @@ try:
         compute_synthesizer_reward,
         compute_batch_rewards,
         REWARD_METHOD,
-        VMMOA_ALPHA,
-        VMMOA_BETA,
-        VMMOA_LAMBDA,
+        HRD_ALPHA,
+        HRD_BETA,
+        HRD_LAMBDA,
     )
 except ImportError:
     logger.warning(
@@ -113,9 +113,9 @@ except ImportError:
         "Task 4 must create vidorag_rewards.py with the expected interface."
     )
     REWARD_METHOD = "original"
-    VMMOA_ALPHA = 0.5
-    VMMOA_BETA = 0.3
-    VMMOA_LAMBDA = 0.05
+    HRD_ALPHA = 0.5
+    HRD_BETA = 0.3
+    HRD_LAMBDA = 0.05
 
     def compute_seeker_reward(predictions: List[str], gold_pages: List[List[int]]) -> torch.Tensor:
         """Placeholder: compare predicted page selections against gold pages."""
@@ -829,10 +829,10 @@ class ViDoRAGVLMPPOTrainer(PPOTrainer, Trainer):
         if self.is_world_process_zero():
             logger.info("***** Running ViDoRAG VLM MAPPO Training *****")
             logger.info("  Reward method = {}".format(REWARD_METHOD))
-            if REWARD_METHOD == "vmmoa":
+            if REWARD_METHOD == "hrd":
                 logger.info(
-                    "  V-MMOA coefficients: alpha(R_ret)={}, beta(R_ins)={}, lambda(C)={}".format(
-                        VMMOA_ALPHA, VMMOA_BETA, VMMOA_LAMBDA
+                    "  HRD coefficients: alpha(R_ret)={}, beta(R_ins)={}, lambda(C)={}".format(
+                        HRD_ALPHA, HRD_BETA, HRD_LAMBDA
                     )
                 )
             logger.info("  Num examples = {:,}".format(num_examples))
@@ -1458,7 +1458,7 @@ class ViDoRAGVLMPPOTrainer(PPOTrainer, Trainer):
         """Run evaluation on held-out questions without PPO updates.
 
         Executes the full seeker -> inspector -> synthesizer pipeline and
-        computes V-MMOA rewards (R_ans, R_ret, R_ins) on held-out data.
+        computes HRD rewards (R_ans, R_ret, R_ins) on held-out data.
         Returns a dict of aggregated metrics.
         """
         self.model.eval()

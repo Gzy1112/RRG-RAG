@@ -49,7 +49,7 @@ logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Reward Method Switch (original ViDoRAG vs V-MMOA paper)
+# Reward Method Switch (original ViDoRAG vs HRD reward)
 # ---------------------------------------------------------------------------
 # Selects the reward formulation used by per-agent PPO.  Mirrors the switch in
 # ``vidorag_rewards.py`` so that per-agent and MAPPO training stay consistent.
@@ -59,7 +59,7 @@ logger = get_logger(__name__)
 #                  inspector    -> INSPECTOR_REWARD_MODE (contain/f1/exact/combined)
 #                  synthesizer  -> token F1
 #
-#   "vmmoa"    : V-MMOA paper (Anonymous EMNLP Submission, Sec. 4.2) agent-local
+#   "hrd"      : HRD (paper Sec. 4.2) agent-local
 #                shaping signals, matching the dense terms of Eq. 1:
 #                  seeker       -> R_ret = recall@k (pure recall vs gold pages)
 #                  inspector    -> R_ins = precision of accepted evidence vs gold
@@ -72,7 +72,7 @@ logger = get_logger(__name__)
 # each agent is trained on its own local signal.
 #
 # Toggle at runtime via the environment variable:
-#     export VIDORAG_REWARD_METHOD=vmmoa   # or "original" (default)
+#     export VIDORAG_REWARD_METHOD=hrd   # or "original" (default)
 REWARD_METHOD = os.environ.get("VIDORAG_REWARD_METHOD", "original").lower()
 
 
@@ -713,9 +713,9 @@ def compute_format_penalty(predicted_text: str) -> float:
 
 
 # ---------------------------------------------------------------------------
-# V-MMOA paper per-agent reward signals (Eq. 1 dense terms)
+# HRD per-agent reward signals (Eq. 1 dense terms)
 # ---------------------------------------------------------------------------
-# These mirror the agent-local shaping terms of the V-MMOA return for use in
+# These mirror the agent-local shaping terms of the HRD return for use in
 # per-agent PPO (where each agent is trained in isolation, so the global R_ans
 # and the iteration-cost C(τ) are not available).
 # ---------------------------------------------------------------------------
@@ -797,7 +797,7 @@ def compute_inspector_precision(
 def compute_answer_f1(predicted_text: str, gold_answer: str) -> float:
     """R_ans: answer-level F1 (global terminal term of Eq. 1).
 
-    Used for the Synthesizer in V-MMOA per-agent mode: pure answer F1 with no
+    Used for the Synthesizer in HRD per-agent mode: pure answer F1 with no
     EM bonus or length penalty, matching the paper's R_ans definition.
     """
     model_answer = predicted_text.strip()
@@ -1558,8 +1558,8 @@ def per_agent_ppo_train(trainer: "CustomPPOTrainer_QSG", gold_data: Dict, agent_
                 if matched_gold is None:
                     # Fallback: use simple format-based reward
                     reward_val = compute_format_penalty(response_text) + 0.1
-                elif REWARD_METHOD == "vmmoa":
-                    # V-MMOA paper (Sec. 4.2) agent-local shaping signals.
+                elif REWARD_METHOD == "hrd":
+                    # HRD (paper Sec. 4.2) agent-local shaping signals.
                     # Per-agent training has no retrieval loop, so only the
                     # agent-local dense term of Eq. 1 is used here (no global
                     # R_ans / iteration cost C(τ); those live in the MAPPO trainer).

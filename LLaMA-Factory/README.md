@@ -1,6 +1,6 @@
 # LLaMA-Factory (modified)
 
-Vendored copy of [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory) `0.9.1.dev0` (Apache-2.0, see `LICENSE`), as extended by MMOA-RAG for multi-agent PPO. It is used for every training stage of RRG-RAG.
+Vendored copy of LLaMA-Factory `0.9.1.dev0` (Apache-2.0, see `LICENSE`), as extended by MMOA-RAG for multi-agent PPO. It is used for every training stage of RRG-RAG.
 
 You do not need to install it: the launchers in `../scripts/` run it from `src/`.
 

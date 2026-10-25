@@ -351,7 +351,6 @@ register_model_group(
         },
         "CommandR-35B-4bit-Chat": {
             DownloadSource.DEFAULT: "CohereForAI/c4ai-command-r-v01-4bit",
-            DownloadSource.MODELSCOPE: "mirror013/c4ai-command-r-v01-4bit",
         },
         "CommandR-Plus-104B-4bit-Chat": {
             DownloadSource.DEFAULT: "CohereForAI/c4ai-command-r-plus-4bit",
@@ -686,19 +685,15 @@ register_model_group(
     models={
         "Llama-7B": {
             DownloadSource.DEFAULT: "huggyllama/llama-7b",
-            DownloadSource.MODELSCOPE: "skyline2006/llama-7b",
         },
         "Llama-13B": {
             DownloadSource.DEFAULT: "huggyllama/llama-13b",
-            DownloadSource.MODELSCOPE: "skyline2006/llama-13b",
         },
         "Llama-30B": {
             DownloadSource.DEFAULT: "huggyllama/llama-30b",
-            DownloadSource.MODELSCOPE: "skyline2006/llama-30b",
         },
         "Llama-65B": {
             DownloadSource.DEFAULT: "huggyllama/llama-65b",
-            DownloadSource.MODELSCOPE: "skyline2006/llama-65b",
         },
     }
 )
@@ -753,13 +748,6 @@ register_model_group(
             DownloadSource.DEFAULT: "meta-llama/Meta-Llama-3-70B-Instruct",
             DownloadSource.MODELSCOPE: "LLM-Research/Meta-Llama-3-70B-Instruct",
         },
-        "Llama-3-8B-Chinese-Chat": {
-            DownloadSource.DEFAULT: "shenzhi-wang/Llama3-8B-Chinese-Chat",
-            DownloadSource.MODELSCOPE: "LLM-Research/Llama3-8B-Chinese-Chat",
-        },
-        "Llama-3-70B-Chinese-Chat": {
-            DownloadSource.DEFAULT: "shenzhi-wang/Llama3-70B-Chinese-Chat",
-        },
         "Llama-3.1-8B": {
             DownloadSource.DEFAULT: "meta-llama/Meta-Llama-3.1-8B",
             DownloadSource.MODELSCOPE: "LLM-Research/Meta-Llama-3.1-8B",
@@ -783,14 +771,6 @@ register_model_group(
         "Llama-3.1-405B-Instruct": {
             DownloadSource.DEFAULT: "meta-llama/Meta-Llama-3.1-405B-Instruct",
             DownloadSource.MODELSCOPE: "LLM-Research/Meta-Llama-3.1-405B-Instruct",
-        },
-        "Llama-3.1-8B-Chinese-Chat": {
-            DownloadSource.DEFAULT: "shenzhi-wang/Llama3.1-8B-Chinese-Chat",
-            DownloadSource.MODELSCOPE: "XD_AI/Llama3.1-8B-Chinese-Chat",
-        },
-        "Llama-3.1-70B-Chinese-Chat": {
-            DownloadSource.DEFAULT: "shenzhi-wang/Llama3.1-70B-Chinese-Chat",
-            DownloadSource.MODELSCOPE: "XD_AI/Llama3.1-70B-Chinese-Chat",
         },
         "Llama-3.2-1B": {
             DownloadSource.DEFAULT: "meta-llama/Llama-3.2-1B",
@@ -976,10 +956,6 @@ register_model_group(
             DownloadSource.DEFAULT: "mistralai/Mistral-7B-Instruct-v0.1",
             DownloadSource.MODELSCOPE: "AI-ModelScope/Mistral-7B-Instruct-v0.1",
         },
-        "Mistral-7B-v0.2": {
-            DownloadSource.DEFAULT: "alpindale/Mistral-7B-v0.2-hf",
-            DownloadSource.MODELSCOPE: "AI-ModelScope/Mistral-7B-v0.2-hf",
-        },
         "Mistral-7B-Instruct-v0.2": {
             DownloadSource.DEFAULT: "mistralai/Mistral-7B-Instruct-v0.2",
             DownloadSource.MODELSCOPE: "AI-ModelScope/Mistral-7B-Instruct-v0.2",
@@ -1045,7 +1021,6 @@ register_model_group(
     models={
         "OpenChat3.5-7B-Chat": {
             DownloadSource.DEFAULT: "openchat/openchat-3.5-0106",
-            DownloadSource.MODELSCOPE: "xcwzxcwz/openchat-3.5-0106",
         }
     },
     template="openchat",
@@ -1121,7 +1096,6 @@ register_model_group(
     models={
         "Phi-1.5-1.3B": {
             DownloadSource.DEFAULT: "microsoft/phi-1_5",
-            DownloadSource.MODELSCOPE: "allspace/PHI_1-5",
         },
         "Phi-2-2.7B": {
             DownloadSource.DEFAULT: "microsoft/phi-2",
@@ -2050,20 +2024,6 @@ register_model_group(
         },
     },
     template="yi",
-)
-
-
-register_model_group(
-    models={
-        "Yi-VL-6B-Chat": {
-            DownloadSource.DEFAULT: "BUAADreamer/Yi-VL-6B-hf",
-        },
-        "Yi-VL-34B-Chat": {
-            DownloadSource.DEFAULT: "BUAADreamer/Yi-VL-34B-hf",
-        },
-    },
-    template="yi_vl",
-    vision=True,
 )
 
 
