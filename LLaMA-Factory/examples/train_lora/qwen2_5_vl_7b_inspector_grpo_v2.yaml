@@ -1,0 +1,72 @@
+# ============================================================
+# Inspector GRPO (Qwen2.5-VL-7B): binary STOP / DECK recovery decision,
+#   cached branch outcomes on the SlideVQA val split, fresh LoRA
+# ============================================================
+# Launched by scripts/train_inspector_grpo.sh, which sets the flags that
+# define the run (VIDORAG_MAPPO_TRAINER=inspector_grpo_v2, MAPPO_USE_GRPO=1,
+# G=8, KL beta 0.05 to the base model, branch / rank cache paths,
+# INSPECTOR_V2_ACTIONS=STOP,DECK, action cost 0, informative weight 32,
+# CONTROLLER_GRPO_MAX_STEPS=120) and fills in model_name_or_path / output_dir.
+#
+# WHAT THIS TRAINER DOES
+#   A fresh 'controller' LoRA (r16/a32, CONTROLLER_GRPO_LORA_*) on the 7B base
+#   learns which action to take after the Seeker's first selection. Rewards
+#   are the judge scores of each action's branch, executed once through the
+#   deployed pipeline on the val split (build_inspector_branch_cache.py), so
+#   no online closed-loop inference happens during training. Only the 'train'
+#   val decks are used; checkpoint / bias selection runs
+#   eval_inspector_v2_offline.py + select_inspector_v2_policy.py on the
+#   'holdout' val decks.
+#
+# DATASET
+#   The trainer reads its records from INSPECTOR_V2_BRANCH_CACHE; `dataset`
+#   only satisfies the LLaMA-Factory loader and is never sampled. Its name
+#   must not contain seeker / inspector / synthesizer (that would switch the
+#   workflow to per-agent PPO).
+#
+# GUARD RAILS
+#   lr 1e-5 constant (fresh LoRA), checkpoint every 20 steps (trainer env,
+#   save_steps unused); MAPPO_GRPO_STD_FLOOR=0.25 keeps small reward gaps
+#   from being amplified into a large advantage on tied questions.
+# ============================================================
+
+model_name_or_path: Qwen/Qwen2.5-VL-7B-Instruct
+
+stage: ppo
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 32
+lora_alpha: 64
+freeze_vision_tower: true
+
+dataset: slidevqa_grpo_placeholder
+max_samples: 64
+template: qwen2_vl
+cutoff_len: 8192
+
+ppo_epochs: 1
+top_k: 0
+top_p: 0.9
+
+output_dir: ../outputs/INSPECTOR_GRPO/run1
+logging_steps: 5
+save_steps: 1000000
+plot_loss: true
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-5
+num_train_epochs: 1.0
+max_steps: 120
+lr_scheduler_type: constant
+warmup_ratio: 0.0
+max_grad_norm: 1.0
+
+bf16: true
+gradient_checkpointing: true
+ddp_timeout: 180000000
+
+image_resolution: 512
+video_resolution: 128
+video_fps: 2.0

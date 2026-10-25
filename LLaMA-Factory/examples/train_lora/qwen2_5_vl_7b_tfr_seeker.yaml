@@ -1,0 +1,57 @@
+### TFR round B - Seeker per-agent PPO with end-to-end reward (Qwen2.5-VL-7B)
+#
+# Reward: e2e = 0.4 * evidence + 0.6 * answer F1 of the frozen Synthesizer
+# (VIDORAG_E2E_SYNTH_ADAPTER, loaded on VIDORAG_E2E_SYNTH_DEVICE; src/train_restore_7b.py).
+# Launched by scripts/train_tfr.sh, which fills in model_name_or_path,
+# adapter_name_or_path (previous Seeker), output_dir, max_steps and
+# learning_rate for every cycle.
+
+### Model
+model_name_or_path: Qwen/Qwen2.5-VL-7B-Instruct
+adapter_name_or_path: ../outputs/SEEKER_SFT/seeker_sft_v4_7b
+
+### Method
+stage: ppo
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 32
+lora_alpha: 64
+freeze_vision_tower: true
+
+### Dataset
+dataset: slidevqa_seeker_ppo_v4
+template: qwen2_vl
+cutoff_len: 4096
+
+### PPO (suppress KL drift, prevent entropy collapse)
+ppo_epochs: 1
+ppo_target: 1.0
+ppo_init_kl_coef: 0.5
+ppo_entropy_coef: 0.01
+top_k: 0
+top_p: 0.9
+
+### Output
+output_dir: ../outputs/TFR_7B/cycle1/round_b_seeker
+logging_steps: 5
+save_steps: 15
+plot_loss: true
+
+### Train
+# e2e reward runs the frozen Synthesizer once per rollout (~3-5x slower/step).
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 5.0e-6
+num_train_epochs: 1.0
+max_steps: 30
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+gradient_checkpointing: true
+ddp_timeout: 180000000
+
+### Vision
+image_resolution: 512
+video_resolution: 128
+video_fps: 2.0

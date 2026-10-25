@@ -1,0 +1,44 @@
+### Synthesizer SFT (Qwen2.5-VL-7B, LoRA)
+# Data: data/SlideVQA/training_data_v7/synthesizer_sft_v7_train.json
+#       (data_prep/prepare_synth_sft_v6.py -> data_prep/prepare_synth_sft_v7.py)
+# Launched by scripts/train_sft.sh, which fills in model_name_or_path / output_dir.
+
+### Model
+model_name_or_path: Qwen/Qwen2.5-VL-7B-Instruct
+
+### Method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 32
+lora_alpha: 64
+freeze_vision_tower: true
+
+### Dataset
+dataset: slidevqa_synthesizer_sft_v7
+template: qwen2_vl
+cutoff_len: 8192
+
+### Output
+output_dir: ../outputs/SYNTHESIZER_SFT/synthesizer_sft_v7_7b
+logging_steps: 10
+save_steps: 500
+save_total_limit: 3
+plot_loss: true
+
+### Train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 1.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+gradient_checkpointing: true
+ddp_timeout: 180000000
+
+### Vision
+image_resolution: 512
+video_resolution: 128
+video_fps: 2.0

@@ -1,0 +1,22 @@
+# data, models, run outputs
+/data/
+/models/
+/outputs/
+*.pt
+*.safetensors
+*.bin
+*.jsonl
+
+# python / tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+.vscode/
+.idea/
+.DS_Store
+*.log
+*.pid
+nohup.out
+.env

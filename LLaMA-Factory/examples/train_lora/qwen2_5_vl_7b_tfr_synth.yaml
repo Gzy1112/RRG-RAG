@@ -1,0 +1,55 @@
+### TFR round A - Synthesizer per-agent PPO (Qwen2.5-VL-7B)
+#
+# Reward: synth_fix5_v11 (VIDORAG_REWARD_METHOD, via src/train_restore.py)
+# Launched by scripts/train_tfr.sh, which fills in model_name_or_path,
+# adapter_name_or_path (previous Synthesizer), output_dir, max_steps and
+# learning_rate for every cycle.
+
+### Model
+model_name_or_path: Qwen/Qwen2.5-VL-7B-Instruct
+adapter_name_or_path: ../outputs/SYNTHESIZER_SFT/synthesizer_sft_v7_7b
+
+### Method
+stage: ppo
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 32
+lora_alpha: 64
+freeze_vision_tower: true
+
+### Dataset
+dataset: slidevqa_synthesizer_ppo_v7
+template: qwen2_vl
+cutoff_len: 8192
+
+### PPO (strong KL anchor, low LR)
+ppo_epochs: 1
+ppo_target: 6.0
+ppo_init_kl_coef: 2.0
+ppo_entropy_coef: 0.02
+top_k: 0
+top_p: 0.9
+
+### Output
+output_dir: ../outputs/TFR_7B/cycle1/round_a_synth
+logging_steps: 5
+save_steps: 15
+plot_loss: true
+
+### Train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-6
+num_train_epochs: 1.0
+max_steps: 30
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+gradient_checkpointing: true
+ddp_timeout: 180000000
+
+### Vision
+image_resolution: 512
+video_resolution: 128
+video_fps: 2.0

@@ -1,0 +1,62 @@
+{
+  "slidevqa_seeker_sft_v4": {
+    "file_name": "../../data/SlideVQA/training_data_v4/seeker_sft_v4_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system",
+      "history": "history",
+      "images": "images"
+    }
+  },
+  "slidevqa_seeker_ppo_v4": {
+    "file_name": "../../data/SlideVQA/training_data_v4/seeker_sft_v4_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system",
+      "history": "history",
+      "images": "images"
+    }
+  },
+  "slidevqa_synthesizer_sft_v7": {
+    "file_name": "../../data/SlideVQA/training_data_v7/synthesizer_sft_v7_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system",
+      "history": "history",
+      "images": "images"
+    }
+  },
+  "slidevqa_synthesizer_ppo_v7": {
+    "file_name": "../../data/SlideVQA/training_data_v7/synthesizer_sft_v7_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system",
+      "history": "history",
+      "images": "images"
+    }
+  },
+  "slidevqa_grpo_placeholder": {
+    "file_name": "../../data/SlideVQA/training_data_v4/seeker_sft_v4_train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "system": "system",
+      "history": "history",
+      "images": "images"
+    }
+  }
+}
